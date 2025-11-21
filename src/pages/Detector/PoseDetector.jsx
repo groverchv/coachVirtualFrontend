@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
+import { requestCameraAccess, stopCameraStream, isSecureContext, isCameraSupported } from '../../utils/cameraUtils';
 
 export default function PoseDetector({ onPoseDetected }) {
   const videoRef = useRef(null);
@@ -21,8 +22,18 @@ export default function PoseDetector({ onPoseDetected }) {
     const initializePoseDetector = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         
-        // Initialize MediaPipe - usar npm package directamente
+        // Verificar requisitos previos
+        if (!isCameraSupported()) {
+          throw new Error('Tu navegador no soporta acceso a cámara. Usa Chrome, Firefox o Edge.');
+        }
+        
+        if (!isSecureContext()) {
+          throw new Error('Se requiere HTTPS para acceso a cámara. El sitio debe estar en una conexión segura.');
+        }
+        
+        // Initialize MediaPipe
         const vision = await FilesetResolver.forVisionTasks(
           'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
         );
@@ -38,8 +49,8 @@ export default function PoseDetector({ onPoseDetected }) {
         
         poseLandmarkerRef.current = poseLandmarker;
 
-        // Access camera
-        stream = await navigator.mediaDevices.getUserMedia({
+        // Access camera con mejor manejo de errores
+        stream = await requestCameraAccess({
           video: { width: 1280, height: 720 }
         });
 
@@ -50,7 +61,8 @@ export default function PoseDetector({ onPoseDetected }) {
 
         setIsLoading(false);
       } catch (err) {
-        setError('No se pudo cargar el modelo o los archivos WASM. Verifica tu conexión o intenta nuevamente.');
+        console.error('Error en PoseDetector:', err);
+        setError(err.message || 'Error al inicializar el detector de poses. Verifica tu conexión y permisos.');
         setIsLoading(false);
       }
     };
@@ -118,7 +130,7 @@ export default function PoseDetector({ onPoseDetected }) {
         cancelAnimationFrame(animationFrameRef.current);
       }
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stopCameraStream(stream);
       }
       if (poseLandmarkerRef.current) {
         poseLandmarkerRef.current.close();

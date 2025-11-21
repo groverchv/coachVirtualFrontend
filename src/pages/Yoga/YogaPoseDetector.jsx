@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import { requestCameraAccess, stopCameraStream, isSecureContext, isCameraSupported } from '../../utils/cameraUtils';
 
 export default function YogaPoseDetector({ onPoseDetected, highlightedAngles = [] }) {
   const videoRef = useRef(null);
@@ -48,6 +49,15 @@ export default function YogaPoseDetector({ onPoseDetected, highlightedAngles = [
       try {
         setIsLoading(true);
         
+        // Verificar requisitos previos
+        if (!isCameraSupported()) {
+          throw new Error('Tu navegador no soporta acceso a cámara. Usa Chrome, Firefox o Edge.');
+        }
+        
+        if (!isSecureContext()) {
+          throw new Error('Se requiere HTTPS para acceso a cámara. El sitio debe estar en una conexión segura.');
+        }
+        
         const vision = await FilesetResolver.forVisionTasks(
           'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
         );
@@ -67,8 +77,8 @@ export default function YogaPoseDetector({ onPoseDetected, highlightedAngles = [
         
         poseLandmarkerRef.current = poseLandmarker;
 
-        // Access camera con mejor resolución y configuración
-        stream = await navigator.mediaDevices.getUserMedia({
+        // Access camera con mejor manejo de errores
+        stream = await requestCameraAccess({
           video: { 
             width: { ideal: 1280, min: 640 },
             height: { ideal: 720, min: 480 },
@@ -85,7 +95,7 @@ export default function YogaPoseDetector({ onPoseDetected, highlightedAngles = [
         setIsLoading(false);
       } catch (err) {
         console.error('Error al inicializar:', err);
-        setError('No se pudo cargar el detector. Verifica tu cámara y conexión.');
+        setError(err.message || 'No se pudo cargar el detector. Verifica tu cámara y conexión.');
         setIsLoading(false);
       }
     };
@@ -239,7 +249,7 @@ export default function YogaPoseDetector({ onPoseDetected, highlightedAngles = [
         cancelAnimationFrame(animationFrameRef.current);
       }
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stopCameraStream(stream);
       }
       if (poseLandmarkerRef.current) {
         poseLandmarkerRef.current.close();

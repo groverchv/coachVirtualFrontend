@@ -1,0 +1,42 @@
+# Netlify configuration file
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Redirect rules for SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers para acceso a cámara y microfono (HTTPS requerido)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Permitir acceso a cámara y micrófono
+    Permissions-Policy = "camera=(self), microphone=(self), geolocation=(self)"
+    # Forzar HTTPS
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # Protección adicional
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Content Security Policy - permitir recursos necesarios
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://coach-virtual.onrender.com https://storage.googleapis.com https://cdn.jsdelivr.net; media-src 'self' blob:; worker-src 'self' blob:;"
+
+# Headers específicos para archivos WASM
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache control para assets estáticos
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
